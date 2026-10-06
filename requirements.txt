@@ -1,0 +1,5 @@
+# This project uses only the Python standard library
+# (xml.etree.ElementTree, csv, json, argparse, pathlib).
+# No third-party packages are required.
+#
+# Requires Python 3.8 or newer (Kali ships with a suitable version).

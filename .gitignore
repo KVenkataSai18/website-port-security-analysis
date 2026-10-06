@@ -1,0 +1,38 @@
+# --- Secrets and credentials (never commit these) ---
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+id_rsa*
+*.kdbx
+secrets.*
+credentials.*
+config.local.*
+
+# --- Python ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- Logs and temporary files ---
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor ---
+.vscode/
+.idea/
+
+# --- Private scan data (uncomment if your target is real and results must stay private) ---
+# scans/raw/*
+# !scans/raw/.gitkeep
