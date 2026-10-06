@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ===========================================================
+  SAMPLE DATA - FOR TESTING THE PARSER ONLY.
+  This is NOT a real scan. The host 192.0.2.10 is in the
+  reserved documentation range (TEST-NET-1) and does not exist.
+  Never use this data in your findings or report.
+  ===========================================================
+-->
+<nmaprun scanner="nmap" args="nmap -sV 192.0.2.10 (SAMPLE)" start="0" version="7.94">
+  <host>
+    <status state="up" reason="sample"/>
+    <address addr="192.0.2.10" addrtype="ipv4"/>
+    <hostnames>
+      <hostname name="sample-target.example" type="user"/>
+    </hostnames>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="8.9p1"/>
+      </port>
+      <port protocol="tcp" portid="80">
+        <state state="open" reason="syn-ack"/>
+        <service name="http" product="nginx" version="1.18.0"/>
+      </port>
+      <port protocol="tcp" portid="443">
+        <state state="open" reason="syn-ack"/>
+        <service name="http" product="nginx" version="1.18.0"/>
+      </port>
+      <port protocol="tcp" portid="3306">
+        <state state="open" reason="syn-ack"/>
+        <service name="mysql" product="MySQL" version="8.0.32"/>
+      </port>
+      <port protocol="tcp" portid="8080">
+        <state state="filtered" reason="no-response"/>
+        <service name="http-proxy"/>
+      </port>
+      <port protocol="tcp" portid="9999">
+        <state state="open" reason="syn-ack"/>
+        <service name="abyss"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>
