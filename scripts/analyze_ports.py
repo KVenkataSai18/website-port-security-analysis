@@ -223,6 +223,12 @@ def load_open_ports(csv_path):
     return [r for r in rows if r.get("state", "").strip().lower() == "open"]
 
 
+def analyze_row(row):
+    """Return the reference-info dict for one parsed port row (used by report.py)."""
+    port = int(row["port"])
+    return PORT_DB.get(port, GENERIC) if row["protocol"] == "tcp" else GENERIC
+
+
 def format_entry(row):
     port = int(row["port"])
     info = PORT_DB.get(port, GENERIC) if row["protocol"] == "tcp" else GENERIC
