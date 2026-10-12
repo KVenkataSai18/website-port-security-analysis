@@ -85,7 +85,11 @@ def is_private(ip):
 def check_nmap():
     """Return the Nmap version line, or raise ScanError if Nmap is missing."""
     if shutil.which("nmap") is None:
-        raise ScanError("Nmap is not installed or not in PATH. Install it with: sudo apt install nmap")
+        raise ScanError(
+            "Nmap is not installed or not in PATH.\n"
+            "  - On Kali/Debian/Ubuntu: sudo apt update && sudo apt install -y nmap\n"
+            "  - On Windows: download and install from https://nmap.org/download.html"
+        )
     try:
         out = subprocess.run(["nmap", "--version"], capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -114,11 +118,13 @@ def run_nmap(ip, out_base, full_scan=False):
     cmd_str = " ".join(cmd)
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2100)
     except FileNotFoundError:
         raise ScanError("Nmap is not installed or not in PATH.")
     except PermissionError:
         raise ScanError("Permission denied while starting Nmap or writing scan files.")
+    except subprocess.TimeoutExpired:
+        raise ScanError(f"Nmap scan timed out on target {ip} (exceeded 35 minutes).")
 
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()

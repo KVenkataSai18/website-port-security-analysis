@@ -17,7 +17,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-FIELDS = ["ip", "hostname", "port", "protocol", "state", "service", "product", "version"]
+FIELDS = ["ip", "hostname", "port", "protocol", "state", "service", "product", "version", "extrainfo"]
 
 
 def parse_nmap_xml(xml_path):
@@ -53,15 +53,27 @@ def parse_nmap_xml(xml_path):
             service_el = port.find("service")
             service = service_el.attrib if service_el is not None else {}
 
+            raw_port = port.get("portid", "0")
+            try:
+                port_id = int(raw_port)
+            except (ValueError, TypeError):
+                port_id = 0
+
+            srv_name = service.get("name", "")
+            tunnel = service.get("tunnel", "")
+            if tunnel == "ssl" and srv_name and not srv_name.startswith("ssl/"):
+                srv_name = f"ssl/{srv_name}"
+
             rows.append({
                 "ip": ip,
                 "hostname": hostname,
-                "port": int(port.get("portid", 0)),
+                "port": port_id,
                 "protocol": port.get("protocol", ""),
                 "state": state_el.get("state", "") if state_el is not None else "",
-                "service": service.get("name", ""),
+                "service": srv_name,
                 "product": service.get("product", ""),
                 "version": service.get("version", ""),
+                "extrainfo": service.get("extrainfo", ""),
             })
     return rows
 

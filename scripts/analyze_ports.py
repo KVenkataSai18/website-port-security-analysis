@@ -201,6 +201,110 @@ PORT_DB = {
         "considerations": "Identify what is running here and whether it needs to be public.",
         "defenses": ["Restrict admin interfaces to internal networks/VPN", "Use strong authentication", "Patch the application"],
     },
+    20: {
+        "name": "FTP-Data", "exposure": "High",
+        "function": "File Transfer Protocol data transfer channel.",
+        "benefit": "Used in active-mode FTP file transfers.",
+        "threats": ["Cleartext data transfer", "Unintended data exposure"],
+        "considerations": "Active FTP requires inbound connections to port 20; prefer passive FTPS/SFTP.",
+        "defenses": ["Migrate to SFTP or FTPS", "Block inbound port 20 at firewall"],
+    },
+    88: {
+        "name": "Kerberos", "exposure": "High",
+        "function": "Kerberos network authentication protocol.",
+        "benefit": "Centralized, ticket-based identity and authentication services in enterprise environments.",
+        "threats": ["AS-REP roasting", "Kerberoasting", "Credential brute-forcing"],
+        "considerations": "Authentication services belong strictly on internal corporate networks.",
+        "defenses": ["Isolate to internal domain networks", "Enforce strong password policies", "Monitor ticket requests"],
+    },
+    111: {
+        "name": "RPCBind", "exposure": "High",
+        "function": "RPCBind / Portmapper: maps RPC service numbers to network ports.",
+        "benefit": "Legacy Unix service discovery (e.g. NFS, NIS).",
+        "threats": ["Service enumeration", "DDoS amplification reflection", "Past remote code execution flaws"],
+        "considerations": "Should never be exposed to the public internet.",
+        "defenses": ["Block port 111 at perimeter firewall", "Disable RPC services if unused"],
+    },
+    161: {
+        "name": "SNMP", "exposure": "High",
+        "function": "Simple Network Management Protocol: device monitoring and management.",
+        "benefit": "Remote hardware, operating system and network monitoring.",
+        "threats": ["Default community strings ('public'/'private')", "Information disclosure (network topologies, users)", "Configuration tampering via SNMP write"],
+        "considerations": "SNMP should never be public. SNMPv1/v2c send community strings in plaintext.",
+        "defenses": ["Use SNMPv3 with encryption and authentication", "Restrict to management network", "Block at external perimeter"],
+    },
+    389: {
+        "name": "LDAP", "exposure": "High",
+        "function": "Lightweight Directory Access Protocol: directory query and management.",
+        "benefit": "Centralized directory and address book lookups.",
+        "threats": ["Cleartext credential transmission without StartTLS", "Anonymous directory binding / enumeration", "LDAP injection"],
+        "considerations": "Directory services should reside in internal networks; use LDAPS (636) or StartTLS.",
+        "defenses": ["Disable anonymous bind", "Enforce LDAPS/StartTLS", "Isolate behind firewall / VPN"],
+    },
+    636: {
+        "name": "LDAPS", "exposure": "Medium",
+        "function": "Lightweight Directory Access Protocol over TLS.",
+        "benefit": "Secure, encrypted directory queries and authentication.",
+        "threats": ["Brute-force authentication", "Account enumeration if unauthenticated lookups are enabled"],
+        "considerations": "Should be accessible only to authenticated internal systems or via VPN.",
+        "defenses": ["Restrict access by IP", "Enforce certificate validation", "Keep directory software patched"],
+    },
+    2049: {
+        "name": "NFS", "exposure": "High",
+        "function": "Network File System: network file sharing protocol.",
+        "benefit": "Seamless network file sharing between Unix/Linux systems.",
+        "threats": ["Unrestricted share mounting", "Information disclosure", "Past remote code execution flaws"],
+        "considerations": "NFS is intended strictly for local trusted subnets.",
+        "defenses": ["Block port 2049 at perimeter firewall", "Export shares only to explicit authorized IPs", "Use NFSv4 with Kerberos"],
+    },
+    6379: {
+        "name": "Redis", "exposure": "High",
+        "function": "Redis in-memory key-value data store and cache.",
+        "benefit": "High-performance session caching and real-time data storage.",
+        "threats": ["Default configuration without authentication", "Direct remote code execution via file write / SSH key injection", "Data extraction"],
+        "considerations": "Redis should bind only to 127.0.0.1 or a protected internal subnet.",
+        "defenses": ["Bind to localhost only", "Require strong AUTH password", "Enable protected-mode", "Firewall port 6379"],
+    },
+    8000: {
+        "name": "HTTP alternate", "exposure": "Medium",
+        "function": "Common alternate HTTP port (often development servers, APIs, or proxy services).",
+        "benefit": "Secondary web service, development sandbox, or backend API endpoint.",
+        "threats": ["Exposed development/debugging interfaces", "Unpatched application servers", "Cleartext web traffic"],
+        "considerations": "Verify whether this service is meant for production exposure.",
+        "defenses": ["Restrict access to authorized clients", "Enforce HTTPS", "Keep server and frameworks updated"],
+    },
+    8081: {
+        "name": "HTTP alternate", "exposure": "Medium",
+        "function": "Alternate HTTP port for proxies, management interfaces, or secondary web services.",
+        "benefit": "Runs secondary web applications alongside primary web ports.",
+        "threats": ["Unintended administrative console exposure", "Unencrypted communication", "Default credentials"],
+        "considerations": "Ensure administrative interfaces are not accessible without authentication.",
+        "defenses": ["Place behind authentication and TLS", "Restrict by IP or VPN", "Disable if unused"],
+    },
+    8888: {
+        "name": "HTTP alternate", "exposure": "Medium",
+        "function": "Common alternate HTTP port (often Jupyter Notebooks, web proxies, or dashboard consoles).",
+        "benefit": "Interactive data science dashboards or custom web services.",
+        "threats": ["Unauthenticated remote code execution (e.g. unprotected Jupyter notebooks)", "Sensitive data exposure"],
+        "considerations": "Exposing interactive consoles to the public internet presents high risk.",
+        "defenses": ["Enforce token/password authentication", "Require TLS", "Firewall to local network"],
+    },
+    9090: {
+        "name": "Cockpit / Admin Console", "exposure": "Medium",
+        "function": "Linux system administration web console (Cockpit) or Prometheus monitoring.",
+        "benefit": "Web-based graphical server administration and monitoring.",
+        "threats": ["Brute-force attacks against administrative credentials", "Privilege escalation", "Direct OS access upon compromise"],
+        "considerations": "Management consoles must not be open to untrusted public networks.",
+        "defenses": ["Restrict to VPN / trusted management IPs", "Enforce multi-factor authentication", "Keep Cockpit updated"],
+    },
+    27017: {
+        "name": "MongoDB", "exposure": "High",
+        "function": "MongoDB NoSQL document database server.",
+        "benefit": "Document database storage for web applications and microservices.",
+        "threats": ["Unauthenticated access if bindIp is 0.0.0.0 without auth", "Ransomware extortion / database wiping", "Mass data exfiltration"],
+        "considerations": "Databases should never listen on public interfaces.",
+        "defenses": ["Bind to 127.0.0.1 or private subnet", "Enable authentication (auth = true)", "Firewall port 27017 at perimeter"],
+    },
 }
 
 GENERIC = {
@@ -225,22 +329,36 @@ def load_open_ports(csv_path):
 
 def analyze_row(row):
     """Return the reference-info dict for one parsed port row (used by report.py)."""
-    port = int(row["port"])
-    return PORT_DB.get(port, GENERIC) if row["protocol"] == "tcp" else GENERIC
+    try:
+        port = int(row.get("port", 0))
+    except (ValueError, TypeError):
+        port = 0
+    proto = str(row.get("protocol", "")).lower()
+    return PORT_DB.get(port, GENERIC) if proto == "tcp" else GENERIC
 
 
 def format_entry(row):
-    port = int(row["port"])
-    info = PORT_DB.get(port, GENERIC) if row["protocol"] == "tcp" else GENERIC
-    product = f"{row['product']} {row['version']}".strip()
-    service_line = row["service"] or "unknown"
+    try:
+        port = int(row.get("port", 0))
+    except (ValueError, TypeError):
+        port = 0
+    proto = str(row.get("protocol", "")).lower()
+    info = PORT_DB.get(port, GENERIC) if proto == "tcp" else GENERIC
+
+    extrainfo = row.get("extrainfo", "").strip()
+    product = f"{row.get('product', '')} {row.get('version', '')}".strip()
+    if extrainfo:
+        product = f"{product} ({extrainfo})" if product else extrainfo
+
+    service_line = row.get("service", "") or "unknown"
     if product:
         service_line += f" ({product})"
 
+    ip = row.get("ip", "unknown")
     lines = [
-        f"### {row['ip']} - {port}/{row['protocol']} ({info['name']})",
+        f"### {ip} - {port}/{proto} ({info['name']})",
         "",
-        f"- **OPEN PORT:** {port}/{row['protocol']} is open",
+        f"- **OPEN PORT:** {port}/{proto} is open",
         f"- **SERVICE:** {service_line}",
         f"- **Version:** {product if product else 'not identified'}",
         f"- **Function:** {info['function']}",
@@ -274,7 +392,11 @@ def build_report(open_rows, source):
             "| Host | Port | Service | Product / Version | Exposure |",
             "|---|---|---|---|---|"]
     for r in open_rows:
-        info = PORT_DB.get(int(r["port"]), GENERIC) if r["protocol"] == "tcp" else GENERIC
+        try:
+            port_num = int(r["port"])
+        except (ValueError, TypeError):
+            port_num = 0
+        info = PORT_DB.get(port_num, GENERIC) if r["protocol"] == "tcp" else GENERIC
         out.append(f"| {r['ip']} | {r['port']}/{r['protocol']} | {r['service']} | "
                    f"{(r['product'] + ' ' + r['version']).strip()} | {info['exposure']} |")
     out += ["", "## Detailed Analysis", ""]

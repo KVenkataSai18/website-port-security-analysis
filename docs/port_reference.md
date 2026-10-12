@@ -8,24 +8,37 @@ An open port is not automatically a vulnerability. Exposure ratings are prelimin
 
 | Port | Service | Preliminary exposure |
 |---|---|---|
+| 20 | FTP-Data | High |
 | 21 | FTP | High |
 | 22 | SSH | Medium |
 | 23 | Telnet | High |
 | 25 | SMTP | Medium |
 | 53 | DNS | Medium |
 | 80 | HTTP | Medium |
+| 88 | Kerberos | High |
 | 110 | POP3 | Medium |
+| 111 | RPCBind | High |
 | 139 | NetBIOS Session | High |
 | 143 | IMAP | Medium |
+| 161 | SNMP | High |
+| 389 | LDAP | High |
 | 443 | HTTPS | Low |
 | 445 | SMB | High |
+| 636 | LDAPS | Medium |
 | 993 | IMAPS | Low |
 | 995 | POP3S | Low |
+| 2049 | NFS | High |
 | 3306 | MySQL | High |
 | 3389 | RDP | High |
 | 5432 | PostgreSQL | High |
+| 6379 | Redis | High |
+| 8000 | HTTP alternate | Medium |
 | 8080 | HTTP alternate | Medium |
+| 8081 | HTTP alternate | Medium |
 | 8443 | HTTPS alternate | Medium |
+| 8888 | HTTP alternate | Medium |
+| 9090 | Cockpit / Admin | Medium |
+| 27017 | MongoDB | High |
 
 ## 21/tcp - FTP
 
@@ -294,3 +307,154 @@ An open port is not automatically a vulnerability. Exposure ratings are prelimin
   - Restrict admin interfaces to internal networks/VPN
   - Use strong authentication
   - Patch the application
+
+## 20/tcp - FTP-Data
+
+- **Function:** File Transfer Protocol data transfer channel.
+- **Legitimate use / benefits:** Active-mode FTP file transfer stream.
+- **Security threats:**
+  - Cleartext data transmission
+  - Unintended external exposure
+- **Common security concerns:** Active FTP requires inbound connections to port 20; prefer passive FTPS/SFTP.
+- **Defensive recommendations:**
+  - Migrate to SFTP or FTPS
+  - Block inbound port 20 at firewall
+
+## 88/tcp - Kerberos
+
+- **Function:** Kerberos network authentication protocol.
+- **Legitimate use / benefits:** Ticket-based identity authentication in corporate enterprise domains.
+- **Security threats:**
+  - AS-REP roasting
+  - Kerberoasting
+  - Credential brute-forcing
+- **Common security concerns:** Authentication services belong strictly on internal corporate networks.
+- **Defensive recommendations:**
+  - Isolate to internal domain networks
+  - Enforce strong password policies
+  - Monitor ticket requests
+
+## 111/tcp - RPCBind
+
+- **Function:** RPCBind / Portmapper: maps RPC service numbers to network ports.
+- **Legitimate use / benefits:** Unix RPC service discovery (e.g. NFS).
+- **Security threats:**
+  - Service enumeration
+  - DDoS amplification reflection
+  - Past remote code execution flaws
+- **Common security concerns:** Should never be exposed to the public internet.
+- **Defensive recommendations:**
+  - Block port 111 at perimeter firewall
+  - Disable RPC services if unused
+
+## 161/tcp - SNMP
+
+- **Function:** Simple Network Management Protocol: device monitoring and management.
+- **Legitimate use / benefits:** Remote hardware, OS and network device telemetry.
+- **Security threats:**
+  - Default community strings ('public'/'private')
+  - Network and user enumeration
+  - Tampering via SNMP write operations
+- **Common security concerns:** SNMPv1/v2c send community strings in plaintext.
+- **Defensive recommendations:**
+  - Use SNMPv3 with encryption and authentication
+  - Restrict to management subnet
+  - Block at external perimeter
+
+## 389/tcp - LDAP
+
+- **Function:** Lightweight Directory Access Protocol: directory query and management.
+- **Legitimate use / benefits:** Centralized directory and address book lookups.
+- **Security threats:**
+  - Cleartext credential transmission without StartTLS
+  - Anonymous directory binding / enumeration
+  - LDAP injection
+- **Common security concerns:** Directory services should reside in internal networks; use LDAPS (636) or StartTLS.
+- **Defensive recommendations:**
+  - Disable anonymous bind
+  - Enforce LDAPS/StartTLS
+  - Isolate behind firewall / VPN
+
+## 636/tcp - LDAPS
+
+- **Function:** Lightweight Directory Access Protocol over TLS.
+- **Legitimate use / benefits:** Secure, encrypted directory queries and authentication.
+- **Security threats:**
+  - Brute-force authentication
+  - Account enumeration
+- **Common security concerns:** Should be accessible only to authenticated internal systems or via VPN.
+- **Defensive recommendations:**
+  - Restrict access by IP
+  - Enforce certificate validation
+  - Keep directory software patched
+
+## 2049/tcp - NFS
+
+- **Function:** Network File System: network file sharing protocol.
+- **Legitimate use / benefits:** Seamless network file sharing between Unix/Linux systems.
+- **Security threats:**
+  - Unrestricted share mounting
+  - Information disclosure
+  - Past remote code execution flaws
+- **Common security concerns:** NFS is intended strictly for local trusted subnets.
+- **Defensive recommendations:**
+  - Block port 2049 at perimeter firewall
+  - Export shares only to explicit authorized IPs
+  - Use NFSv4 with Kerberos
+
+## 6379/tcp - Redis
+
+- **Function:** Redis in-memory key-value data store and cache.
+- **Legitimate use / benefits:** High-performance session caching and real-time data storage.
+- **Security threats:**
+  - Default configuration without authentication
+  - Direct remote code execution via file write / SSH key injection
+  - Data extraction
+- **Common security concerns:** Redis should bind only to 127.0.0.1 or a protected internal subnet.
+- **Defensive recommendations:**
+  - Bind to localhost only
+  - Require strong AUTH password
+  - Enable protected-mode
+  - Firewall port 6379
+
+## 8000/tcp, 8081/tcp, 8888/tcp - HTTP Alternate
+
+- **Function:** Alternate HTTP ports for development servers, APIs, proxies or dashboards (e.g. Jupyter).
+- **Legitimate use / benefits:** Runs secondary web applications alongside primary web ports.
+- **Security threats:**
+  - Exposed development/debugging interfaces
+  - Unauthenticated consoles
+  - Cleartext web traffic
+- **Common security concerns:** Ensure administrative interfaces are not accessible without authentication.
+- **Defensive recommendations:**
+  - Place behind authentication and TLS
+  - Restrict by IP or VPN
+  - Disable if unused
+
+## 9090/tcp - Cockpit / Web Admin Console
+
+- **Function:** Linux system administration web console (Cockpit) or Prometheus monitoring.
+- **Legitimate use / benefits:** Web-based graphical server administration and monitoring.
+- **Security threats:**
+  - Brute-force attacks against administrative credentials
+  - Privilege escalation
+  - Direct OS access upon compromise
+- **Common security concerns:** Management consoles must not be open to untrusted public networks.
+- **Defensive recommendations:**
+  - Restrict to VPN / trusted management IPs
+  - Enforce multi-factor authentication
+  - Keep Cockpit updated
+
+## 27017/tcp - MongoDB
+
+- **Function:** MongoDB NoSQL document database server.
+- **Legitimate use / benefits:** Document database storage for web applications and microservices.
+- **Security threats:**
+  - Unauthenticated access if bindIp is 0.0.0.0 without auth
+  - Ransomware extortion / database wiping
+  - Mass data exfiltration
+- **Common security concerns:** Databases should never listen on public interfaces.
+- **Defensive recommendations:**
+  - Bind to 127.0.0.1 or private subnet
+  - Enable authentication (auth = true)
+  - Firewall port 27017 at perimeter

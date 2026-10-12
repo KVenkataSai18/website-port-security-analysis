@@ -79,26 +79,68 @@ def pipeline(args):
     banner("WEBSITE PORT SECURITY ANALYZER")
     print()
 
-    raw_url = args.url or input("Enter target URL: ")
-    url, hostname = scanner.validate_url(raw_url)
-    name = scanner.safe_name(hostname)
+    if args.xml:
+        xml_path = Path(args.xml).resolve()
+        if not xml_path.is_file():
+            raise ScanError(f"XML file not found: {xml_path}")
+        step(f"Using existing Nmap XML: {rel(xml_path)}")
+        started = datetime.now()
 
-    step("Resolving target...")
-    ip = scanner.resolve_host(hostname)
-    step(f"Target IP: {ip}")
+        import xml.etree.ElementTree as ET
+        try:
+            root_el = ET.parse(xml_path).getroot()
+        except ET.ParseError as exc:
+            raise ScanError(f"Invalid XML file '{xml_path}': {exc}")
 
-    if not args.authorized:
-        confirm_authorization(hostname, ip)
+        nmap_version = f"Nmap {root_el.get('version', '(version in XML)')}"
+        nmap_cmd = root_el.get("args", "nmap -sV TARGET")
 
-    nmap_version = scanner.check_nmap()
-    step(f"Using {nmap_version}")
+        host_el = root_el.find("host")
+        inferred_ip = "unknown"
+        inferred_host = ""
+        if host_el is not None:
+            for addr in host_el.findall("address"):
+                if addr.get("addrtype") in ("ipv4", "ipv6"):
+                    inferred_ip = addr.get("addr", "")
+                    break
+            h_el = host_el.find("hostnames/hostname")
+            if h_el is not None:
+                inferred_host = h_el.get("name", "")
 
-    step("Running Nmap...")
-    step("Detecting services... (this can take a few minutes; Ctrl+C to cancel)")
-    started = datetime.now()
-    xml_path, nmap_cmd = scanner.run_nmap(ip, ROOT / "scans" / "raw" / name, full_scan=args.full)
-    nmap_cmd = nmap_cmd.replace(str(ROOT) + "/", "")  # show relative paths in the report
-    step(f"Nmap finished. XML saved: {rel(xml_path)}")
+        if args.url:
+            url, hostname = scanner.validate_url(args.url)
+            ip = inferred_ip if inferred_ip != "unknown" else hostname
+        else:
+            hostname = inferred_host or inferred_ip
+            ip = inferred_ip
+            url = f"http://{hostname}"
+
+        name = scanner.safe_name(hostname)
+        step(f"Target: {hostname} ({ip})")
+    else:
+        raw_url = args.url or input("Enter target URL: ")
+        url, hostname = scanner.validate_url(raw_url)
+        name = scanner.safe_name(hostname)
+
+        step("Resolving target...")
+        ip = scanner.resolve_host(hostname)
+        step(f"Target IP: {ip}")
+
+        if not args.authorized:
+            confirm_authorization(hostname, ip)
+
+        nmap_version = scanner.check_nmap()
+        step(f"Using {nmap_version}")
+
+        step("Running Nmap...")
+        step("Detecting services... (this can take a few minutes; Ctrl+C to cancel)")
+        started = datetime.now()
+        xml_path, nmap_cmd = scanner.run_nmap(ip, ROOT / "scans" / "raw" / name, full_scan=args.full)
+        step(f"Nmap finished. XML saved: {rel(xml_path)}")
+
+    # Show clean relative paths in report
+    root_str = str(ROOT)
+    nmap_cmd = nmap_cmd.replace(root_str + "/", "").replace(root_str + "\\", "")
 
     # Remove old outputs so a failed step can never be mistaken for fresh results.
     for old in (CSV_PATH, JSON_PATH, ANALYSIS_PATH):
@@ -126,7 +168,7 @@ def pipeline(args):
     )
 
     step("Generating security report...")
-    report_path = ROOT / "reports" / f"{name}_report.md"
+    report_path = Path(args.report) if args.report else ROOT / "reports" / f"{name}_report.md"
     report.write_markdown(ctx, report_path)
 
     step("Generating dashboard...")
@@ -144,12 +186,14 @@ def pipeline(args):
     if c["open"] == 0:
         print("\nNo open ports were found among the ports scanned.")
     print(f"\nReport:\n{rel(report_path)}")
-    print(f"\nDashboard:\n{rel(DASHBOARD_PATH)}")
+    print(f"Dashboard:\n{rel(DASHBOARD_PATH)}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Automated Nmap scan, analysis, report and dashboard.")
     parser.add_argument("--url", help="Target URL or hostname (prompted if omitted)")
+    parser.add_argument("--xml", help="Process an existing Nmap XML file without running Nmap (offline analysis / Windows development)")
+    parser.add_argument("--report", help="Custom output path for generated Markdown report (default: reports/<target>_report.md)")
     parser.add_argument("--full", action="store_true", help="Scan all 65535 TCP ports (-p-). Slower; authorized lab targets only.")
     parser.add_argument("--authorized", action="store_true",
                         help="Confirm you are authorized to scan this target (skips the yes/no prompt)")

@@ -84,9 +84,13 @@ Ports receive a **preliminary exposure rating** based on the port's typical risk
 
 These are exposure indicators, **not vulnerability severities**. The final report may adjust ratings using context about the target (for example, a database port on an isolated lab network).
 
-## 12. Reporting
+## 12. Reporting & Dashboard Generation
 
-Findings are written in `reports/security_report.md`, using only data from real scans. Sample data in `samples/` exists solely for testing the scripts and never appears in findings.
+Findings are synthesized into structured deliverables:
+- **Markdown Security Report:** `reports/<target>_report.md` (and `reports/security_report.md`), providing full target telemetry, port counts, service inventory, defensive analysis, and prioritized recommendations.
+- **Interactive HTML Dashboard:** `results/dashboard.html`, embedding the scan metadata, real-time client-side search and filtering by risk level, visual risk distribution charts, and per-service defensive guidance.
+
+Reporting is fully automated via `app.py` or `scripts/report.py`. Only data from authorized scans is used for actual findings. Sample data in `samples/` exists strictly for test suite verification.
 
 ## 13. Limitations
 

@@ -21,9 +21,12 @@ Nmap, Python 3 (standard library only), Git/GitHub, VS Code, Kali Linux.
 ## Architecture
 
 ```
-Authorized target -> Kali Linux -> Nmap -> raw results (.nmap/.gnmap/.xml)
-   -> parse_nmap.py -> CSV / JSON -> analyze_ports.py -> port_analysis.md
-   -> security_report.md -> GitHub
+Authorized target -> Kali Linux -> Nmap (-sV) -> raw scan (.xml/.nmap)
+   -> app.py (Automated Pipeline) OR Modular Scripts:
+      - scripts/parse_nmap.py    -> results/scan_results.csv & .json
+      - scripts/analyze_ports.py -> results/port_analysis.md
+      - scripts/report.py        -> reports/<target>_report.md & results/dashboard.html
+   -> Final Presentation & Git/GitHub Repository
 ```
 
 ## Project Structure
@@ -35,78 +38,116 @@ website-port-security-analysis/
 ├── .gitignore
 ├── .gitattributes
 ├── requirements.txt
+├── app.py                      # End-to-end pipeline automation
+├── BIA_Port_Scanning_Project_Presentation_Final.pptx # Original deck
+├── BIA_Port_Scanning_Project_Revised.pptx           # Revised presentation
 ├── scans/
-│   ├── raw/                # Nmap output (.nmap, .gnmap, .xml)
-│   └── screenshots/        # Evidence screenshots
+│   ├── raw/                    # Nmap output (.nmap, .gnmap, .xml)
+│   └── screenshots/            # Terminal / evidence screenshots
 ├── results/
-│   ├── scan_results.csv    # Parsed ports (generated)
-│   ├── scan_results.json   # Parsed ports (generated)
-│   └── port_analysis.md    # Security analysis (generated)
+│   ├── scan_results.csv        # Parsed ports (generated)
+│   ├── scan_results.json       # Parsed ports (generated)
+│   ├── port_analysis.md        # Port analysis breakdown (generated)
+│   └── dashboard.html          # Interactive HTML security dashboard (generated)
 ├── samples/
-│   └── sample_nmap.xml     # SAMPLE DATA for testing only - not a real scan
+│   └── sample_nmap.xml         # Mock sample data for parser/pipeline testing only
 ├── scripts/
-│   ├── parse_nmap.py       # Nmap XML -> CSV/JSON
-│   └── analyze_ports.py    # CSV -> security analysis
+│   ├── scanner.py              # URL validation, DNS resolution and Nmap execution
+│   ├── parse_nmap.py           # Nmap XML -> CSV/JSON converter
+│   ├── analyze_ports.py        # CSV -> port analysis & exposure assessment
+│   └── report.py               # Markdown report & HTML dashboard generator
+├── tests/
+│   ├── test_scanner.py         # Tests for URL validation and host resolution
+│   ├── test_parse_nmap.py      # Tests for XML parser and output formats
+│   ├── test_analyze_ports.py   # Tests for port database and exposure ratings
+│   ├── test_report.py          # Tests for report and dashboard generation
+│   └── test_pipeline.py        # End-to-end pipeline integration tests
 ├── reports/
-│   └── security_report.md  # Final report
+│   └── security_report.md      # Structured security report
 └── docs/
-    ├── methodology.md
-    └── port_reference.md
+    ├── methodology.md          # Defensive scanning methodology
+    └── port_reference.md       # Knowledge base of port functions, benefits and threats
 ```
 
 ## Environment
 
 ### Windows Development Environment
 
-Windows 10/11 with VS Code and Git. Used to write code and documentation, commit, and push to GitHub. No scanning happens here.
+Windows 10/11 with Antigravity / VS Code and Git. Used to develop code, run automated tests (`pytest`), inspect artifacts, and manage the repository. No unauthorized live scanning occurs on Windows.
 
 ### Kali Execution Environment
 
-Kali Linux VM (VirtualBox/VMware). Used to pull the repository, run Nmap, run the Python scripts, and push results back.
+Kali Linux VM (VirtualBox/VMware). Used to pull the repository, run authorized Nmap service scans, execute `app.py` or modular analysis scripts, and commit verified results back to GitHub.
 
-## Installation
+## Installation & Dependencies
 
-Python 3.8+ and the standard library are all the scripts need. There is nothing to `pip install`.
+The core pipeline uses only the **Python standard library** (`xml.etree.ElementTree`, `csv`, `json`, `argparse`, `pathlib`, `socket`, `subprocess`). No third-party packages are required to run scans or generate reports.
+
+For running the automated test suite and PowerPoint validation on Windows:
+```powershell
+pip install pytest python-pptx
+```
 
 ## Windows Setup
 
 ```powershell
-git clone https://github.com/YOUR_USERNAME/website-port-security-analysis.git
+git clone https://github.com/KVenkataSai18/website-port-security-analysis.git
 cd website-port-security-analysis
-code .
+pytest -v
 ```
-
-Commit and push changes with `git add .`, `git commit -m "message"`, `git push`.
 
 ## Kali Setup
 
 ```bash
 git --version && nmap --version && python3 --version   # check tools
-sudo apt update && sudo apt install -y git nmap python3  # only if something is missing
-git clone https://github.com/YOUR_USERNAME/website-port-security-analysis.git
+sudo apt update && sudo apt install -y git nmap python3  # install if needed
+git clone https://github.com/KVenkataSai18/website-port-security-analysis.git
 cd website-port-security-analysis
-git pull   # later, to fetch new changes from Windows
+git pull   # fetch latest updates
 ```
 
-## Nmap Scanning
+## Execution Workflows
 
-Run only against a target you own or have written permission to test (for example a lab VM on a host-only network).
+### Option 1: End-to-End Automated Pipeline (Recommended)
+
+Run `app.py` to perform the full automated sequence (validation → DNS resolution → authorization check → Nmap scan → XML parsing → port analysis → Markdown report → interactive HTML dashboard):
 
 ```bash
-nmap TARGET                                         # default scan, 1000 common ports
-nmap -sV TARGET -oA scans/raw/target_scan           # service detection + save all formats
-nmap -p- -sV TARGET -oA scans/raw/target_full_scan  # optional full TCP scan, authorized lab only
+# Interactive prompt:
+python3 app.py
+
+# Direct target scan (requires explicit authorization):
+python3 app.py --url http://192.168.56.101 --authorized
+
+# Full 65,535 TCP port scan (authorized lab targets only):
+python3 app.py --url http://192.168.56.101 --full --authorized
+
+# Offline analysis / Windows testing from an existing XML scan:
+python3 app.py --xml scans/raw/target_scan.xml
 ```
 
-`-sV` detects service versions, `-p-` scans all 65,535 TCP ports, `-oA` writes `.nmap`, `.gnmap` and `.xml` files.
+### Option 2: Modular Step-by-Step Execution
 
-## Processing Results
-
+#### Step 1: Authorized Nmap Scan (Kali Linux)
 ```bash
-python3 scripts/parse_nmap.py scans/raw/target_scan.xml
+nmap -sV TARGET -oA scans/raw/target_scan
+```
+*Options:* `-sV` enables service/version detection; `-Pn` skips host ping; `-oA` saves `.nmap`, `.gnmap` and `.xml`.
+
+#### Step 2: Parse XML to CSV & JSON
+```bash
+python3 scripts/parse_nmap.py scans/raw/target_scan.xml --outdir results
 ```
 
-Creates `results/scan_results.csv` and `results/scan_results.json`.
+#### Step 3: Security & Exposure Analysis
+```bash
+python3 scripts/analyze_ports.py --input results/scan_results.csv --output results/port_analysis.md
+```
+
+#### Step 4: Generate Markdown Report & HTML Dashboard
+```bash
+python3 scripts/report.py --csv results/scan_results.csv --xml scans/raw/target_scan.xml --output reports/security_report.md --dashboard results/dashboard.html
+```
 
 ## Security Analysis
 

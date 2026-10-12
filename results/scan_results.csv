@@ -1,1 +1,1 @@
-ip,hostname,port,protocol,state,service,product,version
+ip,hostname,port,protocol,state,service,product,version,extrainfo

@@ -28,9 +28,11 @@ def load_rows(csv_path):
 def read_xml_extras(xml_path):
     """Counts of ports Nmap collapsed into <extraports> (usually closed/filtered), plus duration."""
     extra, elapsed = Counter(), ""
+    if not xml_path:
+        return extra, elapsed
     try:
         root = ET.parse(xml_path).getroot()
-    except (ET.ParseError, OSError):
+    except (ET.ParseError, OSError, TypeError, AttributeError):
         return extra, elapsed
     for ep in root.iter("extraports"):
         extra[ep.get("state", "")] += int(ep.get("count", 0) or 0)
@@ -52,20 +54,29 @@ def build_context(target, rows, xml_path, nmap_version, nmap_cmd, timestamp):
     """Assemble everything the report and dashboard need."""
     extra, elapsed = read_xml_extras(xml_path)
 
-    states = Counter(bucket(r["state"]) for r in rows)
+    states = Counter(bucket(r.get("state", "")) for r in rows)
     for st, n in extra.items():
         states[bucket(st)] += n
 
     ports = []
     for r in rows:
         info = analyze_row(r)
-        is_open = r["state"] == "open"
+        is_open = r.get("state", "").strip().lower() == "open"
+        extrainfo = r.get("extrainfo", "").strip()
+        version = f"{r.get('product', '')} {r.get('version', '')}".strip()
+        if extrainfo:
+            version = f"{version} ({extrainfo})" if version else extrainfo
+        try:
+            port_num = int(r.get("port", 0))
+        except (ValueError, TypeError):
+            port_num = 0
+
         ports.append({
-            "port": int(r["port"]),
-            "protocol": r["protocol"],
-            "state": r["state"],
-            "service": r["service"] or "unknown",
-            "version": f"{r['product']} {r['version']}".strip(),
+            "port": port_num,
+            "protocol": r.get("protocol", "tcp"),
+            "state": r.get("state", ""),
+            "service": r.get("service", "") or "unknown",
+            "version": version,
             "name": info["name"],
             "risk": info["exposure"] if is_open else "n/a",
             "function": info["function"],
@@ -123,7 +134,10 @@ def assessment_text(c):
 
 def recommendations(open_ports):
     """Prioritised per-port recommendations (highest exposure first), plus general advice."""
-    ordered = sorted(open_ports, key=lambda p: (RISK_ORDER.index(p["risk"]), p["port"]))
+    def get_risk_rank(risk_str):
+        return RISK_ORDER.index(risk_str) if risk_str in RISK_ORDER else 999
+
+    ordered = sorted(open_ports, key=lambda p: (get_risk_rank(p["risk"]), p["port"]))
     per_port = [{"title": f"Port {p['port']}/{p['protocol']} ({p['name']}) - {p['risk']} exposure",
                  "items": p["defenses"]} for p in ordered]
     general = [
@@ -368,3 +382,52 @@ def write_dashboard(ctx, path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(html, encoding="utf-8")
+
+
+def main():
+    import argparse
+    from datetime import datetime
+
+    parser = argparse.ArgumentParser(description="Generate Markdown report and HTML dashboard from scan CSV.")
+    parser.add_argument("--csv", default="results/scan_results.csv", help="Input CSV path (default: results/scan_results.csv)")
+    parser.add_argument("--xml", default=None, help="Optional Nmap XML file for extra port counts and timing")
+    parser.add_argument("--output", default="reports/security_report.md", help="Markdown report output path")
+    parser.add_argument("--dashboard", default="results/dashboard.html", help="HTML dashboard output path")
+    parser.add_argument("--url", default="", help="Target URL")
+    parser.add_argument("--hostname", default="", help="Target Hostname")
+    parser.add_argument("--ip", default="", help="Target IP")
+    args = parser.parse_args()
+
+    csv_path = Path(args.csv)
+    if not csv_path.is_file():
+        sys.exit(f"Error: CSV file not found: {csv_path}")
+
+    rows = load_rows(csv_path)
+
+    # Infer target details from rows or XML if not provided
+    ip = args.ip or (rows[0]["ip"] if rows else "unknown")
+    hostname = args.hostname or (rows[0].get("hostname") if rows else "") or ip
+    url = args.url or f"http://{hostname}"
+    safe_name = hostname.replace(".", "_")
+
+    xml_path = Path(args.xml) if args.xml else None
+    ctx = build_context(
+        target={"url": url, "hostname": hostname, "ip": ip, "safe_name": safe_name},
+        rows=rows,
+        xml_path=xml_path,
+        nmap_version="Nmap (offline/parsed)",
+        nmap_cmd="nmap -sV TARGET",
+        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+    out_md = Path(args.output)
+    write_markdown(ctx, out_md)
+    print(f"Report saved: {out_md}")
+
+    out_dash = Path(args.dashboard)
+    write_dashboard(ctx, out_dash)
+    print(f"Dashboard saved: {out_dash}")
+
+
+if __name__ == "__main__":
+    main()
